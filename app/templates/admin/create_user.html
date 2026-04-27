@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% block title %}Add User — Kumoul SHARED{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title"><i class="bi bi-person-plus-fill"></i> Add New Employee</div>
+  <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline"><i class="bi bi-arrow-left"></i> Back</a>
+</div>
+
+<div style="max-width:600px">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="bi bi-person-badge-fill"></i> Employee Information</div>
+    </div>
+    <div class="card-body">
+      <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div class="form-group">
+            <label class="form-label">Full Name (English) *</label>
+            <input type="text" name="full_name" class="form-control" placeholder="e.g. Ahmed Al-Rashidi" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Username *</label>
+            <input type="text" name="username" class="form-control" placeholder="e.g. ahmed.rashidi" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email Address *</label>
+            <input type="email" name="email" class="form-control" placeholder="employee@kumoul.com" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Password *</label>
+            <input type="password" name="password" class="form-control" placeholder="Min. 6 characters" required minlength="6">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Department *</label>
+            <select name="department" class="form-control" required>
+              {% for d in departments %}
+              <option value="{{ d }}">{{ d }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Role *</label>
+            <select name="role" class="form-control">
+              <option value="employee">Employee</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:8px">
+          <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline">Cancel</a>
+          <button type="submit" class="btn btn-orange">
+            <i class="bi bi-person-check-fill"></i> Create Account
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

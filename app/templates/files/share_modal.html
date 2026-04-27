@@ -1,0 +1,32 @@
+<!-- Share Modal -->
+<div class="modal-overlay" id="shareModal" onclick="if(event.target===this)closeModal('shareModal')">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title"><i class="bi bi-share-fill" style="color:var(--orange)"></i> Share File</div>
+      <button class="modal-close" onclick="closeModal('shareModal')">×</button>
+    </div>
+    <form method="POST" id="shareForm" action="#">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="file_id" id="shareFileId">
+      <div class="modal-body">
+        <p style="font-size:13px;color:var(--text-3);margin-bottom:16px">
+          Sharing: <strong id="shareFileName" style="color:var(--text)"></strong>
+        </p>
+        <div class="form-group" style="position:relative">
+          <label class="form-label">Send to (username or email)</label>
+          <input type="text" name="recipient" id="recipientInput" class="form-control"
+                 placeholder="Type to search employees..." autocomplete="off" required>
+          <div id="userSuggestions" class="user-suggestions"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Message (optional)</label>
+          <input type="text" name="message" class="form-control" placeholder="Add a note...">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('shareModal')">Cancel</button>
+        <button type="submit" class="btn btn-orange"><i class="bi bi-send-fill"></i> Send File</button>
+      </div>
+    </form>
+  </div>
+</div>

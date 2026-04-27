@@ -1,0 +1,201 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard — Kumoul SHARED{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">
+      <i class="bi bi-grid-1x2-fill"></i> Dashboard
+    </div>
+    <div class="page-subtitle">Welcome back, {{ current_user.full_name }} · {{ current_user.department }}</div>
+  </div>
+  <a href="{{ url_for('files.upload') }}" class="btn btn-orange">
+    <i class="bi bi-cloud-upload-fill"></i> Upload Files
+  </a>
+</div>
+
+<!-- Announcements -->
+{% if announcements %}
+<div style="margin-bottom:20px">
+  {% for ann in announcements %}
+  <div class="announcement-banner" style="margin-bottom:8px">
+    <i class="bi bi-megaphone-fill"></i>
+    <div style="flex:1">
+      <div style="font-weight:600;font-size:14px">{{ ann.original_name }}</div>
+      <div style="font-size:12px;opacity:0.7">
+        Posted by {{ ann.owner.full_name }} · {{ ann.created_at.strftime('%b %d, %Y') }}
+      </div>
+    </div>
+    <a href="{{ url_for('files.download', file_id=ann.id) }}" class="btn btn-sm" style="background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.3)">
+      <i class="bi bi-download"></i> Download
+    </a>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- Stats -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-icon"><i class="bi bi-files"></i></div>
+    <div class="stat-info">
+      <div class="stat-value">{{ total_files }}</div>
+      <div class="stat-label">My Files</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon" style="background:rgba(26,82,152,0.1);color:var(--navy-light)">
+      <i class="bi bi-share-fill"></i>
+    </div>
+    <div class="stat-info">
+      <div class="stat-value">{{ shared_today }}</div>
+      <div class="stat-label">Shared Today</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon" style="background:var(--success-bg);color:var(--success)">
+      <i class="bi bi-send-fill"></i>
+    </div>
+    <div class="stat-info">
+      <div class="stat-value">{{ shared_by_me }}</div>
+      <div class="stat-label">Shared By Me</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon" style="background:var(--info-bg);color:var(--info)">
+      <i class="bi bi-hdd-fill"></i>
+    </div>
+    <div class="stat-info">
+      <div class="stat-value">{{ current_user.storage_percent() }}%</div>
+      <div class="stat-label">Storage Used</div>
+    </div>
+  </div>
+</div>
+
+<!-- Main Grid -->
+<div class="dashboard-grid">
+
+  <!-- Recent Files -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="bi bi-clock-history"></i> Recent Files</div>
+      <a href="{{ url_for('files.list_files') }}" class="btn btn-sm btn-outline">View All</a>
+    </div>
+    <div class="card-body" style="padding:12px">
+      {% if recent_files %}
+        {% for file in recent_files %}
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 8px;border-radius:8px;transition:background 0.15s;cursor:default" 
+             onmouseenter="this.style.background='var(--bg)'" onmouseleave="this.style.background=''">
+          <i class="bi {{ file.icon_class() }}" style="font-size:20px;flex-shrink:0"></i>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ file.original_name }}</div>
+            <div style="font-size:11px;color:var(--text-3)">{{ file.human_size() }} · {{ file.created_at.strftime('%b %d') }}</div>
+          </div>
+          <div style="display:flex;gap:4px">
+            {% if file.is_previewable() %}
+            <a href="{{ url_for('files.view_file', file_id=file.id) }}" class="file-action-btn" title="Preview">
+              <i class="bi bi-eye"></i>
+            </a>
+            {% endif %}
+            <a href="{{ url_for('files.download', file_id=file.id) }}" class="file-action-btn" title="Download">
+              <i class="bi bi-download"></i>
+            </a>
+            <button class="file-action-btn" data-share-file="{{ file.id }}" data-file-name="{{ file.original_name }}" title="Share">
+              <i class="bi bi-share"></i>
+            </button>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty-state" style="padding:30px">
+          <i class="bi bi-folder-plus" style="font-size:32px;margin-bottom:8px;display:block"></i>
+          <p style="margin:0">No files yet. Upload your first file!</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Shared With Me -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="bi bi-share-fill"></i> Shared With Me</div>
+      <a href="{{ url_for('sharing.shared_with_me') }}" class="btn btn-sm btn-outline">View All</a>
+    </div>
+    <div class="card-body" style="padding:12px">
+      {% if recent_shares %}
+        {% for share, file, sender in recent_shares %}
+        <div style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;transition:background 0.15s"
+             onmouseenter="this.style.background='var(--bg)'" onmouseleave="this.style.background=''">
+          <div class="user-avatar" style="background:{{ sender.avatar_color }};width:34px;height:34px;font-size:12px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;flex-shrink:0">
+            {{ sender.get_initials() }}
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ file.original_name }}</div>
+            <div style="font-size:11px;color:var(--text-3)">from {{ sender.full_name }} · {{ share.created_at.strftime('%b %d') }}</div>
+          </div>
+          <a href="{{ url_for('files.download', file_id=file.id) }}" class="file-action-btn" title="Download">
+            <i class="bi bi-download"></i>
+          </a>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty-state" style="padding:30px">
+          <i class="bi bi-inbox" style="font-size:32px;margin-bottom:8px;display:block"></i>
+          <p style="margin:0">No files shared with you yet</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Department Files -->
+  {% if dept_files %}
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="bi bi-building"></i> {{ current_user.department }} Department</div>
+      <a href="{{ url_for('files.list_files', dept=current_user.department) }}" class="btn btn-sm btn-outline">View All</a>
+    </div>
+    <div class="card-body" style="padding:12px">
+      {% for file in dept_files %}
+      <div style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;transition:background 0.15s"
+           onmouseenter="this.style.background='var(--bg)'" onmouseleave="this.style.background=''">
+        <i class="bi {{ file.icon_class() }}" style="font-size:20px;flex-shrink:0"></i>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ file.original_name }}</div>
+          <div style="font-size:11px;color:var(--text-3)">{{ file.owner.full_name }} · {{ file.created_at.strftime('%b %d') }}</div>
+        </div>
+        <a href="{{ url_for('files.download', file_id=file.id) }}" class="file-action-btn" title="Download">
+          <i class="bi bi-download"></i>
+        </a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Activity Log -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="bi bi-activity"></i> Recent Activity</div>
+    </div>
+    <div class="card-body" style="padding:16px 20px">
+      {% if recent_activity %}
+        {% for log in recent_activity %}
+        <div class="activity-item">
+          <div class="activity-dot {{ log.action }}"></div>
+          <div class="activity-content">
+            <div class="activity-action">{{ log.details or log.action }}</div>
+            <div class="activity-time">{{ log.created_at.strftime('%b %d, %H:%M') }}</div>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div style="color:var(--text-3);text-align:center;padding:20px;font-size:13px">No activity yet</div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+
+<!-- Share Modal -->
+{% include 'files/share_modal.html' %}
+{% endblock %}

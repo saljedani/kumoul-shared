@@ -1,0 +1,239 @@
+{% extends 'base.html' %}
+{% block title %}Admin Panel — Kumoul SHARED{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title"><i class="bi bi-shield-lock-fill"></i> Admin Panel</div>
+</div>
+
+<!-- Admin Stats -->
+<div class="stats-grid" style="margin-bottom:24px">
+  <div class="stat-card">
+    <div class="stat-icon"><i class="bi bi-people-fill"></i></div>
+    <div class="stat-info">
+      <div class="stat-value">{{ total_users }}</div>
+      <div class="stat-label">Active Users</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon" style="background:var(--info-bg);color:var(--info)"><i class="bi bi-files"></i></div>
+    <div class="stat-info">
+      <div class="stat-value">{{ total_files }}</div>
+      <div class="stat-label">Total Files</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon" style="background:var(--success-bg);color:var(--success)"><i class="bi bi-share-fill"></i></div>
+    <div class="stat-info">
+      <div class="stat-value">{{ total_shares }}</div>
+      <div class="stat-label">Total Shares</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon" style="background:var(--warning-bg);color:var(--warning)"><i class="bi bi-hdd-fill"></i></div>
+    <div class="stat-info">
+      <div class="stat-value">{{ format_bytes(total_storage) }}</div>
+      <div class="stat-label">Storage Used</div>
+    </div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:24px">
+  <div style="display:flex;flex-direction:column;gap:24px">
+
+    <!-- Users Table -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="bi bi-people-fill"></i> Users Management</div>
+        <a href="{{ url_for('admin.create_user') }}" class="btn btn-orange btn-sm">
+          <i class="bi bi-person-plus-fill"></i> Add User
+        </a>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Department</th>
+              <th>Role</th>
+              <th>Storage</th>
+              <th>Last Login</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for user in users %}
+            <tr>
+              <td>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <div class="user-avatar" style="background:{{ user.avatar_color }};width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;color:white;font-weight:700;flex-shrink:0">
+                    {{ user.get_initials() }}
+                  </div>
+                  <div>
+                    <div style="font-weight:600;font-size:13px">{{ user.full_name }}</div>
+                    <div style="font-size:11px;color:var(--text-3)">@{{ user.username }}</div>
+                  </div>
+                </div>
+              </td>
+              <td><span class="dept-tag">{{ user.department }}</span></td>
+              <td>
+                <span class="badge {{ 'badge-orange' if user.role == 'admin' else 'badge-navy' }}">
+                  {{ user.role }}
+                </span>
+              </td>
+              <td style="font-size:12px;color:var(--text-2)">
+                {{ format_bytes(user.storage_used) }}
+                <div style="font-size:10px;color:var(--text-3)">{{ user.storage_percent() }}%</div>
+              </td>
+              <td style="font-size:12px;color:var(--text-3)">
+                {{ user.last_login.strftime('%b %d, %H:%M') if user.last_login else 'Never' }}
+              </td>
+              <td>
+                <span class="badge {{ 'badge-success' if user.is_active else 'badge-danger' }}">
+                  {{ 'Active' if user.is_active else 'Inactive' }}
+                </span>
+              </td>
+              <td>
+                <div style="display:flex;gap:4px;flex-wrap:wrap">
+                  {% if user.id != current_user.id %}
+                  <form method="POST" action="{{ url_for('admin.toggle_user', user_id=user.id) }}" style="display:inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-sm {{ 'btn-danger' if user.is_active else 'btn-outline' }}"
+                            data-confirm="{{ 'Deactivate' if user.is_active else 'Activate' }} {{ user.username }}?">
+                      {{ 'Deactivate' if user.is_active else 'Activate' }}
+                    </button>
+                  </form>
+                  <button class="btn btn-sm btn-outline" onclick="openResetModal({{ user.id }}, '{{ user.username }}')">
+                    <i class="bi bi-key-fill"></i>
+                  </button>
+                  {% else %}
+                  <span style="font-size:12px;color:var(--text-3)">You</span>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Activity Log -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="bi bi-shield-exclamation"></i> Access Logs</div>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="admin-table">
+          <thead>
+            <tr><th>User</th><th>Action</th><th>Details</th><th>IP</th><th>Time</th></tr>
+          </thead>
+          <tbody>
+            {% for log in recent_logs %}
+            <tr>
+              <td style="font-size:13px;font-weight:500">{{ log.user.username if log.user else '—' }}</td>
+              <td>
+                <span class="badge {{ {'upload':'badge-success','download':'badge-info','delete':'badge-danger','share':'badge-orange','login':'badge-navy','logout':'badge-navy'}.get(log.action,'badge-navy') }}">
+                  {{ log.action }}
+                </span>
+              </td>
+              <td style="font-size:12px;color:var(--text-2);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ log.details or '—' }}</td>
+              <td style="font-size:12px;color:var(--text-3)">{{ log.ip_address or '—' }}</td>
+              <td style="font-size:12px;color:var(--text-3)">{{ log.created_at.strftime('%b %d, %H:%M') }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Column -->
+  <div style="display:flex;flex-direction:column;gap:20px">
+
+    <!-- Department File Stats -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="bi bi-bar-chart-fill"></i> Files by Department</div>
+      </div>
+      <div class="card-body">
+        {% for dept, count in dept_stats %}
+        {% if dept %}
+        <div style="margin-bottom:12px">
+          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+            <span style="font-weight:500">{{ dept }}</span>
+            <span style="color:var(--text-3)">{{ count }}</span>
+          </div>
+          <div style="height:6px;background:var(--border);border-radius:99px;overflow:hidden">
+            <div style="height:100%;background:linear-gradient(90deg,var(--navy),var(--orange));border-radius:99px;width:{{ [count * 10, 100]|min }}%"></div>
+          </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Broadcast Message -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="bi bi-megaphone-fill"></i> Broadcast Message</div>
+      </div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('admin.broadcast') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="form-group">
+            <label class="form-label">Title</label>
+            <input type="text" name="title" class="form-control" placeholder="Announcement title..." required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Message</label>
+            <textarea name="message" class="form-control" rows="3" placeholder="Your message to all employees..." required style="resize:vertical"></textarea>
+          </div>
+          <button type="submit" class="btn btn-orange" style="width:100%"
+                  data-confirm="Send broadcast to all employees?">
+            <i class="bi bi-megaphone-fill"></i> Send to All
+          </button>
+        </form>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Reset Password Modal -->
+<div class="modal-overlay" id="resetPwModal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title"><i class="bi bi-key-fill" style="color:var(--orange)"></i> Reset Password</div>
+      <button class="modal-close" onclick="document.getElementById('resetPwModal').classList.remove('open')">×</button>
+    </div>
+    <form method="POST" id="resetPwForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-body">
+        <p style="font-size:13px;color:var(--text-2);margin-bottom:14px">
+          Resetting password for: <strong id="resetUsername"></strong>
+        </p>
+        <div class="form-group">
+          <label class="form-label">New Password</label>
+          <input type="password" name="password" class="form-control" placeholder="Minimum 6 characters" required minlength="6">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="document.getElementById('resetPwModal').classList.remove('open')">Cancel</button>
+        <button type="submit" class="btn btn-orange"><i class="bi bi-key-fill"></i> Reset Password</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openResetModal(userId, username) {
+  document.getElementById('resetUsername').textContent = username;
+  document.getElementById('resetPwForm').action = `/admin/users/${userId}/reset-password`;
+  document.getElementById('resetPwModal').classList.add('open');
+}
+</script>
+{% endblock %}

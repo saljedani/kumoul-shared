@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% block title %}Shared With Me — Kumoul SHARED{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title"><i class="bi bi-share-fill"></i> Shared With Me</div>
+</div>
+
+<div class="card">
+  {% if shares.items %}
+  <table class="file-table">
+    <thead>
+      <tr>
+        <th>File</th>
+        <th>From</th>
+        <th>Message</th>
+        <th>Date</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for share, file, sender in shares.items %}
+      <tr>
+        <td>
+          <div style="display:flex;align-items:center;gap:10px">
+            <i class="bi {{ file.icon_class() }}" style="font-size:20px;flex-shrink:0"></i>
+            <div>
+              <div style="font-weight:600;font-size:13px">{{ file.original_name }}</div>
+              <div style="font-size:11px;color:var(--text-3)">{{ file.human_size() }}</div>
+            </div>
+          </div>
+        </td>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="user-avatar" style="background:{{ sender.avatar_color }};width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;color:white;font-weight:700;flex-shrink:0">
+              {{ sender.get_initials() }}
+            </div>
+            <div>
+              <div style="font-size:13px;font-weight:600">{{ sender.full_name }}</div>
+              <div style="font-size:11px;color:var(--text-3)">{{ sender.department }}</div>
+            </div>
+          </div>
+        </td>
+        <td style="font-size:13px;color:var(--text-2);max-width:200px">
+          {% if share.message %}
+          <span title="{{ share.message }}">{{ share.message[:50] }}{% if share.message|length > 50 %}…{% endif %}</span>
+          {% else %}<span style="color:var(--text-3)">—</span>{% endif %}
+        </td>
+        <td style="color:var(--text-3);font-size:13px">{{ share.created_at.strftime('%b %d, %Y') }}</td>
+        <td>
+          <div style="display:flex;gap:4px">
+            {% if file.is_previewable() %}
+            <a href="{{ url_for('files.view_file', file_id=file.id) }}" class="file-action-btn" title="Preview"><i class="bi bi-eye"></i></a>
+            {% endif %}
+            <a href="{{ url_for('files.download', file_id=file.id) }}" class="file-action-btn" title="Download"><i class="bi bi-download"></i></a>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Pagination -->
+  {% if shares.pages > 1 %}
+  <div class="pagination" style="padding:16px">
+    {% if shares.has_prev %}<a href="{{ url_for('sharing.shared_with_me', page=shares.prev_num) }}" class="page-btn"><i class="bi bi-chevron-left"></i></a>{% endif %}
+    {% for p in shares.iter_pages() %}
+      {% if p %}<a href="{{ url_for('sharing.shared_with_me', page=p) }}" class="page-btn {{ 'active' if p == shares.page }}">{{ p }}</a>
+      {% else %}<span class="page-btn">…</span>{% endif %}
+    {% endfor %}
+    {% if shares.has_next %}<a href="{{ url_for('sharing.shared_with_me', page=shares.next_num) }}" class="page-btn"><i class="bi bi-chevron-right"></i></a>{% endif %}
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div class="empty-state">
+    <i class="bi bi-inbox"></i>
+    <h3>Nothing shared with you yet</h3>
+    <p>When colleagues share files with you, they'll appear here.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

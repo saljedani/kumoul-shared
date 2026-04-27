@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% block title %}Search — Kumoul SHARED{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title"><i class="bi bi-search"></i> Global Search</div>
+</div>
+
+<!-- Search Form -->
+<div class="card" style="margin-bottom:24px">
+  <div class="card-body">
+    <form method="GET" action="{{ url_for('search.search') }}">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;margin-bottom:14px">
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Keyword</label>
+          <input type="text" name="q" class="form-control" placeholder="File name, description..." value="{{ q }}">
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Department</label>
+          <select name="dept" class="form-control">
+            <option value="">All Departments</option>
+            {% for d in departments %}
+            <option value="{{ d }}" {{ 'selected' if dept == d }}>{{ d }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">File Type</label>
+          <select name="type" class="form-control">
+            <option value="">All Types</option>
+            {% for t, label in [('pdf','PDF'),('docx','Word'),('xlsx','Excel'),('pptx','PowerPoint'),('jpg','Images'),('zip','Archives')] %}
+            <option value="{{ t }}" {{ 'selected' if file_type == t }}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Employee</label>
+          <input type="text" name="owner" class="form-control" placeholder="Name or username" value="{{ owner }}">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:14px;align-items:flex-end">
+        <div class="form-group" style="margin:0">
+          <label class="form-label">From Date</label>
+          <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">To Date</label>
+          <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+        </div>
+        <div style="display:flex;gap:8px">
+          <a href="{{ url_for('search.search') }}" class="btn btn-outline">Clear</a>
+          <button type="submit" class="btn btn-orange"><i class="bi bi-search"></i> Search</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Results -->
+{% if results is not none %}
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">
+      <i class="bi bi-files"></i>
+      {% if results %}
+        {{ results|length }} result(s) found
+        {% if q %} for "<strong>{{ q }}</strong>"{% endif %}
+      {% else %}
+        No results found
+      {% endif %}
+    </div>
+  </div>
+
+  {% if results %}
+  <table class="file-table">
+    <thead>
+      <tr>
+        <th>File</th>
+        <th>Owner</th>
+        <th>Department</th>
+        <th>Size</th>
+        <th>Date</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for file, owner in results %}
+      <tr>
+        <td>
+          <div style="display:flex;align-items:center;gap:10px">
+            <i class="bi {{ file.icon_class() }}" style="font-size:20px;flex-shrink:0"></i>
+            <div>
+              <div style="font-weight:600;font-size:13px">{{ file.original_name }}</div>
+              {% if file.description %}<div style="font-size:11px;color:var(--text-3)">{{ file.description[:60] }}{% if file.description|length > 60 %}...{% endif %}</div>{% endif %}
+            </div>
+          </div>
+        </td>
+        <td>
+          <div style="display:flex;align-items:center;gap:6px">
+            <div class="user-avatar" style="background:{{ owner.avatar_color }};width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;color:white;font-weight:700;flex-shrink:0">
+              {{ owner.get_initials() }}
+            </div>
+            <span style="font-size:13px">{{ owner.full_name }}</span>
+          </div>
+        </td>
+        <td>{% if file.department %}<span class="dept-tag">{{ file.department }}</span>{% else %}—{% endif %}</td>
+        <td style="color:var(--text-3)">{{ file.human_size() }}</td>
+        <td style="color:var(--text-3)">{{ file.created_at.strftime('%Y-%m-%d') }}</td>
+        <td>
+          <div style="display:flex;gap:4px">
+            {% if file.is_previewable() %}
+            <a href="{{ url_for('files.view_file', file_id=file.id) }}" class="file-action-btn" title="Preview"><i class="bi bi-eye"></i></a>
+            {% endif %}
+            <a href="{{ url_for('files.download', file_id=file.id) }}" class="file-action-btn" title="Download"><i class="bi bi-download"></i></a>
+            <button class="file-action-btn" data-share-file="{{ file.id }}" data-file-name="{{ file.original_name }}" title="Share"><i class="bi bi-share"></i></button>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <i class="bi bi-search"></i>
+    <h3>No files found</h3>
+    <p>Try different keywords or adjust your filters</p>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+{% include 'files/share_modal.html' %}
+{% endblock %}

@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+{% block title %}My Profile — Kumoul SHARED{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title"><i class="bi bi-person-circle"></i> My Profile</div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;max-width:900px">
+
+  <!-- Profile Info -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="bi bi-person-fill"></i> Personal Information</div>
+    </div>
+    <div class="card-body">
+      <!-- Avatar -->
+      <div style="text-align:center;margin-bottom:24px">
+        <div class="profile-avatar" style="background:{{ current_user.avatar_color }}">
+          {{ current_user.get_initials() }}
+        </div>
+        <div style="font-size:18px;font-weight:700">{{ current_user.full_name }}</div>
+        <div style="font-size:13px;color:var(--text-3)">@{{ current_user.username }} · {{ current_user.department }}</div>
+        <span class="badge {{ 'badge-orange' if current_user.role == 'admin' else 'badge-navy' }}" style="margin-top:8px;display:inline-flex">
+          {{ current_user.role }}
+        </span>
+      </div>
+
+      <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="update_profile">
+        <div class="form-group">
+          <label class="form-label">Full Name (English)</label>
+          <input type="text" name="full_name" class="form-control" value="{{ current_user.full_name }}" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Full Name (Arabic)</label>
+          <input type="text" name="full_name_ar" class="form-control" value="{{ current_user.full_name_ar or '' }}" dir="rtl" placeholder="الاسم بالعربية">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email Address</label>
+          <input type="email" name="email" class="form-control" value="{{ current_user.email }}" required>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div class="form-group">
+            <label class="form-label">Theme</label>
+            <select name="theme" class="form-control">
+              <option value="light" {{ 'selected' if current_user.theme == 'light' }}>☀️ Light</option>
+              <option value="dark" {{ 'selected' if current_user.theme == 'dark' }}>🌙 Dark</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Language</label>
+            <select name="language" class="form-control">
+              <option value="en" {{ 'selected' if current_user.language == 'en' }}>🇬🇧 English</option>
+              <option value="ar" {{ 'selected' if current_user.language == 'ar' }}>🇸🇦 العربية</option>
+            </select>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-orange" style="width:100%">
+          <i class="bi bi-check2-circle"></i> Save Changes
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Change Password & Stats -->
+  <div style="display:flex;flex-direction:column;gap:20px">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="bi bi-lock-fill"></i> Change Password</div>
+      </div>
+      <div class="card-body">
+        <form method="POST">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="change_password">
+          <div class="form-group">
+            <label class="form-label">Current Password</label>
+            <input type="password" name="old_password" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">New Password</label>
+            <input type="password" name="new_password" class="form-control" required minlength="6">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Confirm New Password</label>
+            <input type="password" name="confirm_password" class="form-control" required minlength="6">
+          </div>
+          <button type="submit" class="btn btn-primary" style="width:100%">
+            <i class="bi bi-shield-lock-fill"></i> Update Password
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="bi bi-graph-up"></i> My Statistics</div>
+      </div>
+      <div class="card-body">
+        <table style="width:100%;font-size:13px">
+          {% set stats = [
+            ('Member since', current_user.created_at.strftime('%B %Y')),
+            ('Last login', current_user.last_login.strftime('%b %d, %Y %H:%M') if current_user.last_login else 'N/A'),
+            ('Storage used', format_bytes(current_user.storage_used)),
+            ('Storage limit', format_bytes(current_user.storage_limit)),
+          ] %}
+          {% for label, value in stats %}
+          <tr>
+            <td style="padding:8px 0;color:var(--text-3);border-bottom:1px solid var(--border-light)">{{ label }}</td>
+            <td style="padding:8px 0;font-weight:600;border-bottom:1px solid var(--border-light);text-align:right">{{ value }}</td>
+          </tr>
+          {% endfor %}
+        </table>
+        <div style="margin-top:14px">
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px">
+            <span>Storage</span>
+            <span style="color:var(--orange);font-weight:600">{{ current_user.storage_percent() }}%</span>
+          </div>
+          <div class="storage-bar" style="height:8px;background:var(--border)">
+            <div class="storage-fill" style="width:{{ current_user.storage_percent() }}%;height:100%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

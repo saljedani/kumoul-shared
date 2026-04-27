@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+{% block title %}Upload Files — Kumoul SHARED{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title"><i class="bi bi-cloud-upload-fill"></i> Upload Files</div>
+    <div class="page-subtitle">Drag & drop or click to select files (max 500MB each)</div>
+  </div>
+  <a href="{{ url_for('files.list_files') }}" class="btn btn-outline"><i class="bi bi-arrow-left"></i> Back</a>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 340px;gap:24px">
+  <div>
+    <form method="POST" enctype="multipart/form-data" id="uploadForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <!-- Drop Zone -->
+      <div class="upload-zone" id="uploadZone">
+        <i class="bi bi-cloud-upload-fill"></i>
+        <h3>Drop files here or click to browse</h3>
+        <p>Supports: PDF, Word, Excel, PowerPoint, Images, ZIP, CAD, and more</p>
+        <p style="margin-top:8px;font-size:12px;color:var(--text-3)">Maximum file size: 500MB</p>
+        <input type="file" name="files" id="fileInput" multiple accept="*/*">
+      </div>
+
+      <!-- File Preview List -->
+      <div id="filePreviewList" style="margin-top:8px"></div>
+
+      <!-- Upload Progress -->
+      <div id="uploadProgressWrap" style="display:none;margin-top:12px">
+        <div style="font-size:13px;color:var(--text-2);margin-bottom:6px;font-weight:500">
+          <i class="bi bi-hourglass-split"></i> Uploading...
+        </div>
+        <div class="upload-progress">
+          <div class="upload-progress-fill" id="uploadProgressBar" style="width:0%"></div>
+        </div>
+      </div>
+
+      <!-- Options -->
+      <div class="card" style="margin-top:20px">
+        <div class="card-header">
+          <div class="card-title"><i class="bi bi-sliders"></i> Upload Options</div>
+        </div>
+        <div class="card-body">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+            <div class="form-group">
+              <label class="form-label">Department</label>
+              <select name="department" class="form-control">
+                <option value="">None</option>
+                {% for d in ['HR','Finance','Projects','Engineering','Management','General'] %}
+                <option value="{{ d }}" {{ 'selected' if d == current_user.department }}>{{ d }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Save to Folder</label>
+              <select name="folder_id" class="form-control">
+                <option value="">Root (no folder)</option>
+                {% for folder in folders %}
+                <option value="{{ folder.id }}" {{ 'selected' if folder.id == folder_id }}>
+                  {{ folder.name }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Description / Notes (optional)</label>
+            <input type="text" name="description" class="form-control" placeholder="Brief description of the files...">
+          </div>
+          <div style="display:flex;gap:20px;flex-wrap:wrap">
+            <div class="form-check">
+              <input type="checkbox" name="is_company_wide" id="companyWide">
+              <label for="companyWide" style="cursor:pointer;font-size:13px">
+                <i class="bi bi-globe" style="color:var(--navy-light)"></i> Make visible company-wide
+              </label>
+            </div>
+            {% if current_user.role == 'admin' %}
+            <div class="form-check">
+              <input type="checkbox" name="is_announcement" id="isAnnouncement">
+              <label for="isAnnouncement" style="cursor:pointer;font-size:13px">
+                <i class="bi bi-megaphone-fill" style="color:var(--orange)"></i> Mark as Company Announcement
+              </label>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:20px;display:flex;gap:12px;justify-content:flex-end">
+        <a href="{{ url_for('files.list_files') }}" class="btn btn-outline">Cancel</a>
+        <button type="submit" class="btn btn-orange btn-lg">
+          <i class="bi bi-cloud-upload-fill"></i> Upload Files
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Tips Panel -->
+  <div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="bi bi-lightbulb-fill"></i> Tips</div>
+      </div>
+      <div class="card-body" style="font-size:13px;color:var(--text-2);line-height:1.8">
+        <p><i class="bi bi-check-circle-fill" style="color:var(--success)"></i> Select multiple files at once</p>
+        <p><i class="bi bi-check-circle-fill" style="color:var(--success)"></i> Drag & drop from your desktop</p>
+        <p><i class="bi bi-check-circle-fill" style="color:var(--success)"></i> Tag with a department for team access</p>
+        <p><i class="bi bi-check-circle-fill" style="color:var(--success)"></i> Company-wide files are visible to all</p>
+        {% if current_user.role == 'admin' %}
+        <p><i class="bi bi-megaphone-fill" style="color:var(--orange)"></i> Announcements appear on all dashboards</p>
+        {% endif %}
+        <hr style="margin:14px 0;border-color:var(--border)">
+        <div style="font-weight:600;margin-bottom:8px">Supported formats:</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          {% for ext in ['PDF','Word','Excel','PPT','Images','ZIP','CSV','CAD','Video','Audio'] %}
+          <span class="badge badge-navy">{{ ext }}</span>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Storage Indicator -->
+    <div class="card" style="margin-top:16px">
+      <div class="card-body">
+        <div style="font-size:13px;font-weight:600;margin-bottom:10px;display:flex;justify-content:space-between">
+          <span><i class="bi bi-hdd-fill" style="color:var(--navy)"></i> Your Storage</span>
+          <span style="color:var(--orange)">{{ current_user.storage_percent() }}%</span>
+        </div>
+        <div class="storage-bar" style="height:8px;background:var(--border)">
+          <div class="storage-fill" style="width:{{ current_user.storage_percent() }}%;height:100%"></div>
+        </div>
+        <div style="font-size:12px;color:var(--text-3);margin-top:8px">
+          {{ format_bytes(current_user.storage_used) }} used of {{ format_bytes(current_user.storage_limit) }}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

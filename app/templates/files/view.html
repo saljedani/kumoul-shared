@@ -1,0 +1,181 @@
+{% extends 'base.html' %}
+{% block title %}{{ file.original_name }} — Kumoul SHARED{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">
+      <i class="bi {{ file.icon_class() }}"></i>
+      {{ file.original_name }}
+    </div>
+    <div class="page-subtitle">
+      {{ file.human_size() }} ·
+      Uploaded by {{ file.owner.full_name }} ·
+      {{ file.created_at.strftime('%B %d, %Y at %H:%M') }}
+      {% if file.version > 1 %} · <span class="badge badge-navy">Version {{ file.version }}</span>{% endif %}
+    </div>
+  </div>
+  <div style="display:flex;gap:10px">
+    <a href="{{ url_for('files.list_files') }}" class="btn btn-outline"><i class="bi bi-arrow-left"></i> Back</a>
+    <a href="{{ url_for('files.download', file_id=file.id) }}" class="btn btn-primary">
+      <i class="bi bi-download"></i> Download
+    </a>
+    {% if file.owner_id == current_user.id or current_user.role == 'admin' %}
+    <button class="btn btn-outline" onclick="document.getElementById('replaceModal').classList.add('open')">
+      <i class="bi bi-arrow-repeat"></i> Replace
+    </button>
+    {% endif %}
+    <button class="btn btn-orange" data-share-file="{{ file.id }}" data-file-name="{{ file.original_name }}">
+      <i class="bi bi-share-fill"></i> Share
+    </button>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 300px;gap:24px">
+  <!-- Preview -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="bi bi-eye-fill"></i> Preview</div>
+    </div>
+    <div class="card-body" style="padding:0">
+      {% if file.is_previewable() %}
+        {% if file.extension and file.extension.lower() == 'pdf' %}
+        <div class="preview-container">
+          <embed src="{{ url_for('files.preview', file_id=file.id) }}" type="application/pdf">
+        </div>
+        {% else %}
+        <div class="preview-container" style="padding:20px">
+          <img src="{{ url_for('files.preview', file_id=file.id) }}" alt="{{ file.original_name }}">
+        </div>
+        {% endif %}
+      {% else %}
+      <div class="empty-state" style="padding:60px">
+        <i class="bi {{ file.icon_class() }}" style="font-size:64px;margin-bottom:16px;display:block"></i>
+        <h3>No preview available</h3>
+        <p>Preview is supported for PDF and image files.</p>
+        <a href="{{ url_for('files.download', file_id=file.id) }}" class="btn btn-orange">
+          <i class="bi bi-download"></i> Download to View
+        </a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- File Details -->
+  <div style="display:flex;flex-direction:column;gap:16px">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="bi bi-info-circle-fill"></i> Details</div>
+      </div>
+      <div class="card-body" style="font-size:13px">
+        <table style="width:100%;border-collapse:collapse">
+          {% set details = [
+            ('File Name', file.original_name),
+            ('Size', file.human_size()),
+            ('Type', file.extension.upper() if file.extension else 'Unknown'),
+            ('Department', file.department or '—'),
+            ('Owner', file.owner.full_name),
+            ('Version', file.version),
+            ('Downloads', file.download_count),
+            ('Uploaded', file.created_at.strftime('%Y-%m-%d %H:%M')),
+            ('Updated', file.updated_at.strftime('%Y-%m-%d %H:%M'))
+          ] %}
+          {% for label, value in details %}
+          <tr>
+            <td style="padding:7px 0;color:var(--text-3);font-weight:500;width:45%;border-bottom:1px solid var(--border-light)">{{ label }}</td>
+            <td style="padding:7px 0;border-bottom:1px solid var(--border-light);font-weight:500;overflow:hidden;text-overflow:ellipsis;max-width:160px">{{ value }}</td>
+          </tr>
+          {% endfor %}
+        </table>
+
+        {% if file.description %}
+        <div style="margin-top:12px;padding:10px;background:var(--bg);border-radius:8px;font-size:12px;color:var(--text-2)">
+          {{ file.description }}
+        </div>
+        {% endif %}
+
+        <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap">
+          {% if file.is_company_wide %}
+          <span class="badge badge-navy"><i class="bi bi-globe"></i> Company-wide</span>
+          {% endif %}
+          {% if file.is_announcement %}
+          <span class="badge badge-orange"><i class="bi bi-megaphone-fill"></i> Announcement</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Share history -->
+    {% set shares = file.shares.all() %}
+    {% if shares and (file.owner_id == current_user.id or current_user.role == 'admin') %}
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="bi bi-people-fill"></i> Shared With ({{ shares|length }})</div>
+      </div>
+      <div class="card-body" style="padding:10px 16px">
+        {% for share in shares %}
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border-light)">
+          <div class="user-avatar" style="background:{{ share.recipient.avatar_color }};width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;color:white;font-weight:700;flex-shrink:0">
+            {{ share.recipient.get_initials() }}
+          </div>
+          <div style="flex:1;font-size:12px">
+            <div style="font-weight:600">{{ share.recipient.full_name }}</div>
+            <div style="color:var(--text-3)">{{ share.created_at.strftime('%b %d') }}</div>
+          </div>
+          <form method="POST" action="{{ url_for('sharing.revoke_share', share_id=share.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="file-action-btn danger" title="Revoke" style="width:24px;height:24px;font-size:11px"
+                    data-confirm="Revoke access for {{ share.recipient.full_name }}?">
+              <i class="bi bi-x"></i>
+            </button>
+          </form>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Delete -->
+    {% if file.owner_id == current_user.id or current_user.role == 'admin' %}
+    <form method="POST" action="{{ url_for('files.delete', file_id=file.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-danger" style="width:100%"
+              data-confirm="Permanently delete '{{ file.original_name }}'? This cannot be undone.">
+        <i class="bi bi-trash-fill"></i> Delete File
+      </button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Replace Modal -->
+{% if file.owner_id == current_user.id or current_user.role == 'admin' %}
+<div class="modal-overlay" id="replaceModal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title"><i class="bi bi-arrow-repeat" style="color:var(--orange)"></i> Replace File</div>
+      <button class="modal-close" onclick="document.getElementById('replaceModal').classList.remove('open')">×</button>
+    </div>
+    <form method="POST" enctype="multipart/form-data" action="{{ url_for('files.replace', file_id=file.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-body">
+        <p style="font-size:13px;color:var(--text-2);margin-bottom:14px">
+          Upload a new version of <strong>{{ file.original_name }}</strong>.<br>
+          Current version: <strong>v{{ file.version }}</strong> → New: <strong>v{{ file.version + 1 }}</strong>
+        </p>
+        <div class="form-group">
+          <label class="form-label">Select new file</label>
+          <input type="file" name="new_file" class="form-control" required>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="document.getElementById('replaceModal').classList.remove('open')">Cancel</button>
+        <button type="submit" class="btn btn-orange"><i class="bi bi-arrow-repeat"></i> Replace</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+{% include 'files/share_modal.html' %}
+{% endblock %}

@@ -1,0 +1,224 @@
+{% extends 'base.html' %}
+{% block title %}My Files — Kumoul SHARED{% endblock %}
+
+{% block content %}
+
+<!-- Breadcrumb -->
+<div class="breadcrumb">
+  <a href="{{ url_for('files.list_files') }}"><i class="bi bi-folder2-open"></i> My Files</a>
+  {% if current_folder %}
+    {% set path_parts = [] %}
+    {% set ns = namespace(folder=current_folder) %}
+    {% for _ in range(10) %}
+      {% if ns.folder %}
+        {% set _ = path_parts.insert(0, ns.folder) %}
+        {% if ns.folder.parent_id %}
+          {% set ns.folder = ns.folder.parent %}
+        {% else %}
+          {% set ns.folder = None %}
+        {% endif %}
+      {% endif %}
+    {% endfor %}
+    {% for pf in path_parts %}
+    <span class="sep"><i class="bi bi-chevron-right"></i></span>
+    <a href="{{ url_for('files.list_files', folder_id=pf.id) }}">{{ pf.name }}</a>
+    {% endfor %}
+  {% elif dept %}
+  <span class="sep"><i class="bi bi-chevron-right"></i></span>
+  <span class="current">{{ dept }}</span>
+  {% endif %}
+</div>
+
+<div class="page-header">
+  <div>
+    <div class="page-title">
+      <i class="bi bi-{{ 'folder2-open' if not dept else {'HR':'people','Finance':'cash-stack','Projects':'kanban','Engineering':'gear','Management':'diagram-3'}.get(dept,'folder2') }}-fill"></i>
+      {{ current_folder.name if current_folder else (dept + ' Department' if dept else 'My Files') }}
+    </div>
+    <div class="page-subtitle">{{ files.total }} file(s)</div>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center">
+    <div class="view-toggle">
+      <button class="view-btn active" id="viewGrid" title="Grid view"><i class="bi bi-grid-3x3-gap-fill"></i></button>
+      <button class="view-btn" id="viewList" title="List view"><i class="bi bi-list-ul"></i></button>
+    </div>
+    <!-- New Folder -->
+    <button class="btn btn-outline" onclick="document.getElementById('newFolderModal').classList.add('open')">
+      <i class="bi bi-folder-plus"></i> New Folder
+    </button>
+    <a href="{{ url_for('files.upload', folder_id=current_folder.id if current_folder else '') }}" class="btn btn-orange">
+      <i class="bi bi-upload"></i> Upload
+    </a>
+  </div>
+</div>
+
+<!-- Folders Grid -->
+{% if folders %}
+<div class="folders-grid" style="margin-bottom:20px">
+  {% for folder in folders %}
+  <a href="{{ url_for('files.list_files', folder_id=folder.id) }}" class="folder-card">
+    <i class="bi bi-folder-fill folder-icon" style="color:{{ folder.color }}"></i>
+    <div class="folder-name">{{ folder.name }}</div>
+    <div class="folder-count">{{ folder.files.count() }} files</div>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- Files Grid View -->
+<div id="filesGrid" class="files-grid">
+  {% for file in files.items %}
+  <div class="file-card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div class="file-icon-wrap">
+        <i class="bi {{ file.icon_class() }}"></i>
+      </div>
+      {% if file.is_announcement %}
+      <span class="badge badge-orange"><i class="bi bi-megaphone-fill"></i> Announcement</span>
+      {% elif file.is_company_wide %}
+      <span class="badge badge-navy"><i class="bi bi-globe"></i> Company</span>
+      {% endif %}
+    </div>
+    <div class="file-info">
+      <div class="file-name" title="{{ file.original_name }}">{{ file.original_name }}</div>
+      <div class="file-meta">
+        <span>{{ file.human_size() }}</span>
+        <span>·</span>
+        <span>{{ file.created_at.strftime('%b %d') }}</span>
+        {% if file.version > 1 %}<span class="badge badge-navy" style="font-size:10px">v{{ file.version }}</span>{% endif %}
+      </div>
+      {% if file.department %}<div class="dept-tag" style="margin-top:4px">{{ file.department }}</div>{% endif %}
+    </div>
+    <div class="file-actions">
+      {% if file.is_previewable() %}
+      <a href="{{ url_for('files.view_file', file_id=file.id) }}" class="file-action-btn" title="Preview"><i class="bi bi-eye"></i></a>
+      {% endif %}
+      <a href="{{ url_for('files.download', file_id=file.id) }}" class="file-action-btn" title="Download"><i class="bi bi-download"></i></a>
+      <button class="file-action-btn" data-share-file="{{ file.id }}" data-file-name="{{ file.original_name }}" title="Share"><i class="bi bi-share"></i></button>
+      {% if file.owner_id == current_user.id or current_user.role == 'admin' %}
+      <form method="POST" action="{{ url_for('files.delete', file_id=file.id) }}" style="display:inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="file-action-btn danger" title="Delete" data-confirm="Delete '{{ file.original_name }}'?"><i class="bi bi-trash"></i></button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  {% else %}
+  <div class="empty-state" style="grid-column:1/-1">
+    <i class="bi bi-folder-x"></i>
+    <h3>No files here</h3>
+    <p>Upload files to get started</p>
+    <a href="{{ url_for('files.upload') }}" class="btn btn-orange"><i class="bi bi-upload"></i> Upload Files</a>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Files List View -->
+<div id="filesList" style="display:none">
+  <div class="card">
+    <table class="file-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Size</th>
+          <th>Department</th>
+          <th>Date</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for file in files.items %}
+        <tr>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px">
+              <i class="bi {{ file.icon_class() }}" style="font-size:18px;flex-shrink:0"></i>
+              <span style="font-weight:500">{{ file.original_name }}</span>
+              {% if file.version > 1 %}<span class="badge badge-navy">v{{ file.version }}</span>{% endif %}
+            </div>
+          </td>
+          <td style="color:var(--text-3)">{{ file.human_size() }}</td>
+          <td>{% if file.department %}<span class="dept-tag">{{ file.department }}</span>{% endif %}</td>
+          <td style="color:var(--text-3)">{{ file.created_at.strftime('%Y-%m-%d') }}</td>
+          <td>
+            <div style="display:flex;gap:4px">
+              {% if file.is_previewable() %}
+              <a href="{{ url_for('files.view_file', file_id=file.id) }}" class="file-action-btn" title="Preview"><i class="bi bi-eye"></i></a>
+              {% endif %}
+              <a href="{{ url_for('files.download', file_id=file.id) }}" class="file-action-btn" title="Download"><i class="bi bi-download"></i></a>
+              <button class="file-action-btn" data-share-file="{{ file.id }}" data-file-name="{{ file.original_name }}" title="Share"><i class="bi bi-share"></i></button>
+              {% if file.owner_id == current_user.id or current_user.role == 'admin' %}
+              <form method="POST" action="{{ url_for('files.delete', file_id=file.id) }}" style="display:inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="file-action-btn danger" title="Delete" data-confirm="Delete this file?"><i class="bi bi-trash"></i></button>
+              </form>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="empty-state" style="padding:30px">No files found</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Pagination -->
+{% if files.pages > 1 %}
+<div class="pagination">
+  {% if files.has_prev %}
+  <a href="{{ url_for('files.list_files', page=files.prev_num, folder_id=current_folder.id if current_folder else '', dept=dept or '') }}" class="page-btn"><i class="bi bi-chevron-left"></i></a>
+  {% endif %}
+  {% for p in files.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+    {% if p %}
+    <a href="{{ url_for('files.list_files', page=p, folder_id=current_folder.id if current_folder else '', dept=dept or '') }}" class="page-btn {{ 'active' if p == files.page }}">{{ p }}</a>
+    {% else %}
+    <span class="page-btn" style="cursor:default;color:var(--text-3)">…</span>
+    {% endif %}
+  {% endfor %}
+  {% if files.has_next %}
+  <a href="{{ url_for('files.list_files', page=files.next_num, folder_id=current_folder.id if current_folder else '', dept=dept or '') }}" class="page-btn"><i class="bi bi-chevron-right"></i></a>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- New Folder Modal -->
+<div class="modal-overlay" id="newFolderModal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title"><i class="bi bi-folder-plus" style="color:var(--orange)"></i> New Folder</div>
+      <button class="modal-close" onclick="document.getElementById('newFolderModal').classList.remove('open')">×</button>
+    </div>
+    <form method="POST" action="{{ url_for('folders.create') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="parent_id" value="{{ current_folder.id if current_folder else '' }}">
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Folder Name</label>
+          <input type="text" name="name" class="form-control" placeholder="e.g. Project Documents" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Department (optional)</label>
+          <select name="department" class="form-control">
+            <option value="">None</option>
+            {% for d in ['HR','Finance','Projects','Engineering','Management'] %}
+            <option value="{{ d }}">{{ d }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Color</label>
+          <input type="color" name="color" value="#1a3a6b" class="form-control" style="height:40px;padding:4px">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="document.getElementById('newFolderModal').classList.remove('open')">Cancel</button>
+        <button type="submit" class="btn btn-orange"><i class="bi bi-folder-plus"></i> Create Folder</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Share Modal -->
+{% include 'files/share_modal.html' %}
+{% endblock %}

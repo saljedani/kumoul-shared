@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="{{ current_user.language if current_user.is_authenticated else 'en' }}" 
+      dir="{{ 'rtl' if (current_user.is_authenticated and current_user.language == 'ar') else 'ltr' }}"
+      data-theme="{{ current_user.theme if current_user.is_authenticated else 'light' }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Kumoul SHARED{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+{% if current_user.is_authenticated %}
+<!-- Sidebar -->
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-logo">
+      <div class="logo-mark">
+        <span>K</span>
+      </div>
+      <div class="brand-text">
+        <span class="brand-name">Kumoul</span>
+        <span class="brand-sub">SHARED</span>
+      </div>
+    </div>
+    <button class="sidebar-toggle-btn" id="sidebarToggle" title="Toggle sidebar">
+      <i class="bi bi-layout-sidebar-reverse"></i>
+    </button>
+  </div>
+
+  <!-- Quick Upload -->
+  <div class="sidebar-quick-upload">
+    <a href="{{ url_for('files.upload') }}" class="btn-quick-upload">
+      <i class="bi bi-cloud-upload-fill"></i>
+      <span>Upload Files</span>
+    </a>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">Main</div>
+    <a href="{{ url_for('dashboard.home') }}" class="nav-link {% if request.endpoint == 'dashboard.home' %}active{% endif %}">
+      <i class="bi bi-grid-1x2-fill"></i><span>Dashboard</span>
+    </a>
+    <a href="{{ url_for('files.list_files') }}" class="nav-link {% if request.endpoint in ['files.list_files','files.upload','files.view_file'] %}active{% endif %}">
+      <i class="bi bi-folder2-open"></i><span>My Files</span>
+    </a>
+    <a href="{{ url_for('sharing.shared_with_me') }}" class="nav-link {% if request.endpoint == 'sharing.shared_with_me' %}active{% endif %}">
+      <i class="bi bi-share-fill"></i>
+      <span>Shared With Me</span>
+      {% if unread_notifications > 0 %}
+      <span class="nav-badge">{{ unread_notifications }}</span>
+      {% endif %}
+    </a>
+    <a href="{{ url_for('sharing.shared_by_me') }}" class="nav-link {% if request.endpoint == 'sharing.shared_by_me' %}active{% endif %}">
+      <i class="bi bi-send-fill"></i><span>Shared By Me</span>
+    </a>
+    <a href="{{ url_for('search.search') }}" class="nav-link {% if request.endpoint == 'search.search' %}active{% endif %}">
+      <i class="bi bi-search"></i><span>Search</span>
+    </a>
+
+    <div class="nav-section-label">Departments</div>
+    {% for dept in ['HR', 'Finance', 'Projects', 'Engineering', 'Management'] %}
+    <a href="{{ url_for('files.list_files', dept=dept) }}" 
+       class="nav-link dept-link {% if request.args.get('dept') == dept %}active{% endif %}">
+      <i class="bi bi-{{ {'HR':'people','Finance':'cash-stack','Projects':'kanban','Engineering':'gear','Management':'diagram-3'}[dept] }}-fill"></i>
+      <span>{{ dept }}</span>
+    </a>
+    {% endfor %}
+
+    {% if current_user.role == 'admin' %}
+    <div class="nav-section-label">Admin</div>
+    <a href="{{ url_for('admin.dashboard') }}" class="nav-link {% if 'admin' in request.endpoint %}active{% endif %}">
+      <i class="bi bi-shield-lock-fill"></i><span>Admin Panel</span>
+    </a>
+    <a href="{{ url_for('admin.create_user') }}" class="nav-link">
+      <i class="bi bi-person-plus-fill"></i><span>Add User</span>
+    </a>
+    {% endif %}
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="storage-widget">
+      <div class="storage-header">
+        <i class="bi bi-hdd-fill"></i>
+        <span>Storage</span>
+        <span class="storage-percent">{{ current_user.storage_percent() }}%</span>
+      </div>
+      <div class="storage-bar">
+        <div class="storage-fill" style="width: {{ current_user.storage_percent() }}%"></div>
+      </div>
+      <div class="storage-detail">{{ format_bytes(current_user.storage_used) }} / {{ format_bytes(current_user.storage_limit) }}</div>
+    </div>
+  </div>
+</div>
+
+<!-- Main Content -->
+<div class="main-wrapper" id="mainWrapper">
+  <!-- Top Header -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="mobile-menu-btn" id="mobileMenuBtn">
+        <i class="bi bi-list"></i>
+      </button>
+      <!-- Search bar -->
+      <form action="{{ url_for('search.search') }}" method="GET" class="topbar-search">
+        <i class="bi bi-search search-icon"></i>
+        <input type="text" name="q" placeholder="Search files, people, departments..." 
+               value="{{ request.args.get('q', '') }}" autocomplete="off">
+      </form>
+    </div>
+    <div class="topbar-right">
+      <!-- Notifications -->
+      <div class="topbar-notif" id="notifBtn">
+        <button class="icon-btn" title="Notifications">
+          <i class="bi bi-bell-fill"></i>
+          <span class="notif-dot" id="notifDot" {% if unread_notifications == 0 %}style="display:none"{% endif %}></span>
+        </button>
+        <div class="notif-dropdown" id="notifDropdown">
+          <div class="notif-header">
+            <span>Notifications</span>
+            <button onclick="markAllRead()" class="mark-read-btn">Mark all read</button>
+          </div>
+          <div id="notifList">
+            <div class="notif-loading"><i class="bi bi-hourglass-split"></i></div>
+          </div>
+          <a href="{{ url_for('notifications.list_notifications') }}" class="notif-footer">View All</a>
+        </div>
+      </div>
+
+      <!-- Theme Toggle -->
+      <button class="icon-btn theme-toggle" id="themeToggle" title="Toggle dark/light mode">
+        <i class="bi bi-{{ 'sun-fill' if current_user.theme == 'dark' else 'moon-fill' }}"></i>
+      </button>
+
+      <!-- Language Toggle -->
+      <button class="icon-btn lang-toggle" id="langToggle" title="Toggle language">
+        <span>{{ 'EN' if current_user.language == 'ar' else 'ع' }}</span>
+      </button>
+
+      <!-- User Avatar -->
+      <div class="topbar-user" id="userMenuBtn">
+        <div class="user-avatar" style="background: {{ current_user.avatar_color }}">
+          {{ current_user.get_initials() }}
+        </div>
+        <div class="user-info">
+          <span class="user-name">{{ current_user.full_name }}</span>
+          <span class="user-dept">{{ current_user.department }}</span>
+        </div>
+        <div class="user-dropdown" id="userDropdown">
+          <a href="{{ url_for('auth.profile') }}"><i class="bi bi-person-fill"></i> Profile</a>
+          {% if current_user.role == 'admin' %}<a href="{{ url_for('admin.dashboard') }}"><i class="bi bi-shield-fill"></i> Admin</a>{% endif %}
+          <hr>
+          <a href="{{ url_for('auth.logout') }}" class="logout-link"><i class="bi bi-box-arrow-right"></i> Logout</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Page Content -->
+  <main class="page-content">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-container">
+          {% for category, message in messages %}
+          <div class="flash-msg flash-{{ category }}">
+            <i class="bi bi-{{ {'success':'check-circle-fill','danger':'x-circle-fill','warning':'exclamation-triangle-fill','info':'info-circle-fill'}.get(category,'info-circle-fill') }}"></i>
+            {{ message }}
+            <button onclick="this.parentElement.remove()">×</button>
+          </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+</div>
+
+{% else %}
+  {% block auth_content %}{% endblock %}
+{% endif %}
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>
