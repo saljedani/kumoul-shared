@@ -247,7 +247,7 @@
               <i class="bi bi-folder-symlink"></i>
             </button>
             <form method="POST"
-                  action="{{ url_for('company.delete_file', file_id=file.id) }}"
+                 action="{{ url_for('company.delete_file_route', file_id=file.id) }}"
                   style="display:inline">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button type="submit" class="caction-btn caction-danger" title="Delete"
