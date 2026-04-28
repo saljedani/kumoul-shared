@@ -1,17 +1,52 @@
 {% extends 'base.html' %}
-
-{% block title %}Login — Kumoul SHARED{% endblock %}
+{% block title %}Sign In — Kumoul SHARED{% endblock %}
 
 {% block auth_content %}
 <div class="login-page">
-  <div class="login-bg-pattern"></div>
+  <div class="login-bg-orb login-bg-orb-1"></div>
+  <div class="login-bg-orb login-bg-orb-2"></div>
+
   <div class="login-card">
+
+    <!-- ── Logo Block ── -->
     <div class="login-brand">
-      <div class="login-logo">K</div>
-      <h1>Kumoul SHARED</h1>
-      <p>Internal File Sharing Platform<br>منصة مشاركة الملفات الداخلية</p>
+      <!-- Full inline SVG logo — no external request needed -->
+      <svg class="login-logo-svg" viewBox="0 0 340 95" xmlns="http://www.w3.org/2000/svg" fill="none">
+        <!-- K hexagon mark -->
+        <g transform="translate(245,3) scale(0.92)">
+          <polygon points="50,2 96,27 96,88 50,113 4,88 4,27" fill="white" opacity="0.12"/>
+          <polygon points="50,2 96,27 96,88 50,113 4,88 4,27" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+          <polygon points="50,2 96,27 96,88 50,113 4,88 4,27" fill="white" opacity="0.05"/>
+          <!-- Solid hex -->
+          <polygon points="50,2 96,27 96,88 50,113 4,88 4,27" fill="#0f2447"/>
+          <polygon points="50,2 96,27 96,56 68,38 50,2" fill="#e85d04"/>
+          <rect x="26" y="24" width="13" height="67" rx="2.5" fill="white"/>
+          <polygon points="39,54 70,24 85,24 54,54" fill="white"/>
+          <polygon points="39,57 70,91 85,91 54,57" fill="white"/>
+        </g>
+        <!-- Arabic كمول -->
+        <text x="4" y="34"
+              font-family="'IBM Plex Sans Arabic','Segoe UI',Arial,sans-serif"
+              font-weight="700" font-size="26" fill="white">كـمـول</text>
+        <!-- KUMOUL -->
+        <text x="2" y="63"
+              font-family="'Plus Jakarta Sans','Arial Black',sans-serif"
+              font-weight="900" font-size="36" fill="white" letter-spacing="2">KUMOUL</text>
+        <!-- Consulting line -->
+        <text x="2" y="83"
+              font-family="'Plus Jakarta Sans',Arial,sans-serif"
+              font-weight="600" font-size="13" fill="#e85d04" letter-spacing="2.5">Consulting</text>
+        <text x="113" y="83"
+              font-family="'IBM Plex Sans Arabic',Arial,sans-serif"
+              font-weight="600" font-size="13" fill="#e85d04">  الإستشارية</text>
+      </svg>
+
+      <div class="login-tagline">
+        Shared File Platform &nbsp;·&nbsp; منصة مشاركة الملفات
+      </div>
     </div>
 
+    <!-- ── Flash Messages ── -->
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% for category, message in messages %}
@@ -23,37 +58,72 @@
       {% endif %}
     {% endwith %}
 
+    <!-- ── Login Form ── -->
     <form method="POST" class="login-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
       <div class="form-group">
         <label class="form-label">Username or Email</label>
-        <input type="text" name="username" class="form-control" 
-               placeholder="Enter your username" autocomplete="username" required autofocus>
+        <div class="login-input-wrap">
+          <i class="bi bi-person-fill login-input-icon"></i>
+          <input type="text" name="username" class="form-control login-input"
+                 placeholder="Enter your username or email"
+                 autocomplete="username" required autofocus>
+        </div>
       </div>
 
       <div class="form-group">
         <label class="form-label">Password</label>
-        <input type="password" name="password" class="form-control" 
-               placeholder="Enter your password" autocomplete="current-password" required>
+        <div class="login-input-wrap">
+          <i class="bi bi-lock-fill login-input-icon"></i>
+          <input type="password" name="password" id="loginPwd"
+                 class="form-control login-input"
+                 placeholder="Enter your password"
+                 autocomplete="current-password" required>
+          <button type="button" class="login-eye-btn" onclick="togglePwd()">
+            <i class="bi bi-eye" id="eyeIcon"></i>
+          </button>
+        </div>
       </div>
 
-      <div class="form-check" style="margin-bottom:20px">
+      <div class="form-check" style="margin-bottom:22px">
         <input type="checkbox" name="remember" id="remember">
-        <label for="remember" style="color:rgba(255,255,255,0.6);font-size:13px;cursor:pointer">
+        <label for="remember" style="color:rgba(255,255,255,0.65);font-size:13px;cursor:pointer">
           Keep me signed in for 8 hours
         </label>
       </div>
 
       <button type="submit" class="btn-login">
-        <i class="bi bi-box-arrow-in-right"></i> Sign In
+        <i class="bi bi-box-arrow-in-right"></i>
+        Sign In &nbsp;/&nbsp; تسجيل الدخول
       </button>
     </form>
 
+    <!-- ── Footer ── -->
     <div class="login-footer">
-      <p>Kumoul Engineering Consulting</p>
-      <p style="margin-top:4px">Internal use only — Unauthorized access is prohibited</p>
+      <!-- Small inline K mark -->
+      <svg width="18" height="20" viewBox="0 0 100 115" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle;margin-right:6px;opacity:0.45">
+        <polygon points="50,2 96,27 96,88 50,113 4,88 4,27" fill="white"/>
+        <polygon points="50,2 96,27 96,56 68,38 50,2" fill="#e85d04"/>
+        <rect x="26" y="24" width="13" height="67" rx="2.5" fill="#0f2447"/>
+        <polygon points="39,54 70,24 85,24 54,54" fill="#0f2447"/>
+        <polygon points="39,57 70,91 85,91 54,57" fill="#0f2447"/>
+      </svg>
+      Kumoul Engineering Consulting
+      <br>
+      <span style="font-size:11px;opacity:0.45">
+        Internal use only — Unauthorized access is strictly prohibited
+      </span>
     </div>
   </div>
 </div>
+
+<script>
+function togglePwd() {
+  const inp = document.getElementById('loginPwd');
+  const ico = document.getElementById('eyeIcon');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+  ico.className = inp.type === 'password' ? 'bi bi-eye' : 'bi bi-eye-slash';
+}
+</script>
 {% endblock %}

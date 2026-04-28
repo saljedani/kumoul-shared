@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 115" fill="none">
+  <!-- Outer hexagon - navy dark body -->
+  <polygon points="50,2 96,27 96,88 50,113 4,88 4,27" fill="#0f2447"/>
+  <!-- Orange top-right accent wedge (matches photo: top-right slice) -->
+  <polygon points="50,2 96,27 96,56 68,38 50,2" fill="#e85d04"/>
+  <!-- White K letterform - vertical bar -->
+  <rect x="26" y="24" width="13" height="67" rx="2.5" fill="white"/>
+  <!-- White K - upper arm -->
+  <polygon points="39,54 70,24 85,24 54,54" fill="white"/>
+  <!-- White K - lower arm -->
+  <polygon points="39,57 70,91 85,91 54,57" fill="white"/>
+</svg>

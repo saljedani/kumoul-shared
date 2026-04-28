@@ -1,0 +1,531 @@
+{% extends 'base.html' %}
+{% block title %}Shared Company Files — Kumoul SHARED{% endblock %}
+
+{% block content %}
+
+<!-- ══ PAGE HERO ══════════════════════════════════════════════════════════════ -->
+<div class="company-hero">
+  <div class="company-hero-inner">
+    <div class="company-hero-icon">
+      <svg viewBox="0 0 100 115" xmlns="http://www.w3.org/2000/svg" fill="none">
+        <polygon points="50,2 96,27 96,88 50,113 4,88 4,27" fill="rgba(255,255,255,0.12)"/>
+        <polygon points="50,2 96,27 96,56 68,38 50,2" fill="#e85d04"/>
+        <rect x="26" y="24" width="13" height="67" rx="2.5" fill="white"/>
+        <polygon points="39,54 70,24 85,24 54,54" fill="white"/>
+        <polygon points="39,57 70,91 85,91 54,57" fill="white"/>
+      </svg>
+    </div>
+    <div>
+      <div class="company-hero-title">Shared Company Files</div>
+      <div class="company-hero-sub">الملفات المشتركة للشركة — visible to all Kumoul employees</div>
+    </div>
+  </div>
+  <div class="company-hero-stats">
+    <div class="hero-stat">
+      <span class="hero-stat-value">{{ total_files }}</span>
+      <span class="hero-stat-label">Files</span>
+    </div>
+    <div class="hero-stat-div"></div>
+    <div class="hero-stat">
+      <span class="hero-stat-value">{{ total_folders }}</span>
+      <span class="hero-stat-label">Folders</span>
+    </div>
+    <div class="hero-stat-div"></div>
+    <div class="hero-stat">
+      <span class="hero-stat-value">{{ format_bytes(total_bytes) }}</span>
+      <span class="hero-stat-label">Total Size</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TOOLBAR ════════════════════════════════════════════════════════════════ -->
+<div class="company-toolbar">
+
+  <!-- Breadcrumb -->
+  <nav class="breadcrumb" style="margin-bottom:0;flex:1">
+    <a href="{{ url_for('company.index') }}">
+      <i class="bi bi-building-fill-check"></i> Company Files
+    </a>
+    {% for crumb in breadcrumb %}
+      <span class="sep"><i class="bi bi-chevron-right"></i></span>
+      {% if not loop.last %}
+        <a href="{{ url_for('company.index', folder_id=crumb.id) }}">{{ crumb.name }}</a>
+      {% else %}
+        <span class="current">{{ crumb.name }}</span>
+      {% endif %}
+    {% endfor %}
+  </nav>
+
+  <!-- Right-side controls -->
+  <div class="company-toolbar-right">
+    <!-- Search -->
+    <form method="GET" action="{{ url_for('company.index') }}" class="company-search-form">
+      {% if current_folder %}
+      <input type="hidden" name="folder_id" value="{{ current_folder.id }}">
+      {% endif %}
+      <div class="company-search-wrap">
+        <i class="bi bi-search"></i>
+        <input type="text" name="q" value="{{ q }}" placeholder="Search files & folders…" autocomplete="off">
+        {% if q %}<a href="{{ url_for('company.index', folder_id=current_folder.id if current_folder else '') }}" class="search-clear"><i class="bi bi-x"></i></a>{% endif %}
+      </div>
+    </form>
+
+    <!-- Sort -->
+    <form method="GET" action="{{ url_for('company.index') }}" id="sortForm">
+      {% if current_folder %}<input type="hidden" name="folder_id" value="{{ current_folder.id }}">{% endif %}
+      {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+      <select name="sort" class="form-control" style="width:130px;font-size:12px;padding:6px 10px"
+              onchange="document.getElementById('sortForm').submit()">
+        <option value="newest" {{ 'selected' if sort=='newest' }}>Newest first</option>
+        <option value="oldest" {{ 'selected' if sort=='oldest' }}>Oldest first</option>
+        <option value="name"   {{ 'selected' if sort=='name'   }}>Name A→Z</option>
+        <option value="size"   {{ 'selected' if sort=='size'   }}>Largest first</option>
+      </select>
+    </form>
+
+    <!-- New Folder -->
+    <button class="btn btn-outline" onclick="openModal('newFolderModal')">
+      <i class="bi bi-folder-plus"></i> New Folder
+    </button>
+
+    <!-- Upload -->
+    <button class="btn btn-orange" onclick="openModal('uploadModal')">
+      <i class="bi bi-cloud-upload-fill"></i> Upload Files
+    </button>
+  </div>
+</div>
+
+<!-- ══ MAIN CONTENT ═══════════════════════════════════════════════════════════ -->
+
+{% if not folders and not files.items %}
+<!-- Empty State -->
+<div class="company-empty">
+  <div class="company-empty-icon">
+    <svg viewBox="0 0 100 115" xmlns="http://www.w3.org/2000/svg" fill="none" width="64" height="64" style="opacity:0.18">
+      <polygon points="50,2 96,27 96,88 50,113 4,88 4,27" fill="var(--navy)"/>
+      <polygon points="50,2 96,27 96,56 68,38 50,2" fill="var(--orange)"/>
+      <rect x="26" y="24" width="13" height="67" rx="2.5" fill="white"/>
+      <polygon points="39,54 70,24 85,24 54,54" fill="white"/>
+      <polygon points="39,57 70,91 85,91 54,57" fill="white"/>
+    </svg>
+    <i class="bi bi-folder-x" style="font-size:56px;color:var(--text-3)"></i>
+  </div>
+  <h3>No files here yet</h3>
+  <p>Be the first to upload a file to the company shared space.<br>All employees will instantly see it.</p>
+  <div style="display:flex;gap:10px;justify-content:center">
+    <button class="btn btn-orange" onclick="openModal('uploadModal')">
+      <i class="bi bi-cloud-upload-fill"></i> Upload First File
+    </button>
+    <button class="btn btn-outline" onclick="openModal('newFolderModal')">
+      <i class="bi bi-folder-plus"></i> Create Folder
+    </button>
+  </div>
+</div>
+
+{% else %}
+
+<!-- ── Folders Row ── -->
+{% if folders %}
+<div class="company-section-label">
+  <i class="bi bi-folder-fill"></i> Folders ({{ folders|length }})
+</div>
+<div class="company-folders-grid">
+  {% for folder in folders %}
+  <div class="company-folder-card" id="folder-{{ folder.id }}">
+    <a href="{{ url_for('company.index', folder_id=folder.id) }}" class="cfolder-link">
+      <div class="cfolder-icon" style="color:{{ folder.color }}">
+        <i class="bi bi-folder-fill"></i>
+      </div>
+      <div class="cfolder-info">
+        <div class="cfolder-name">{{ folder.name }}</div>
+        <div class="cfolder-meta">
+          {{ folder.file_count() }} file{% if folder.file_count() != 1 %}s{% endif %}
+          · by {{ folder.creator.full_name.split()[0] }}
+        </div>
+      </div>
+    </a>
+    <div class="cfolder-actions">
+      {% if folder.created_by == current_user.id or current_user.role == 'admin' %}
+      <button class="caction-btn"
+              onclick="openRenameModal('folder', {{ folder.id }}, '{{ folder.name|e }}')"
+              title="Rename">
+        <i class="bi bi-pencil"></i>
+      </button>
+      <form method="POST"
+            action="{{ url_for('company.delete_folder', folder_id=folder.id) }}"
+            style="display:inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="caction-btn caction-danger"
+                title="Delete folder"
+                data-confirm="Delete folder '{{ folder.name }}' and all its contents?">
+          <i class="bi bi-trash"></i>
+        </button>
+      </form>
+      {% else %}
+      <span style="font-size:11px;color:var(--text-3)">{{ folder.creator.get_initials() }}</span>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- ── Files ── -->
+{% if files.items %}
+<div class="company-section-label" style="margin-top:{{ '20px' if folders else '0' }}">
+  <i class="bi bi-files"></i> Files ({{ files.total }})
+</div>
+<div class="card" style="overflow:hidden">
+  <table class="cfiles-table">
+    <thead>
+      <tr>
+        <th style="width:44px"></th>
+        <th>Name</th>
+        <th>Uploaded by</th>
+        <th>Size</th>
+        <th>Date</th>
+        <th>Downloads</th>
+        <th style="width:120px">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for file in files.items %}
+      <tr class="cfile-row" id="file-{{ file.id }}">
+        <!-- Icon -->
+        <td style="text-align:center">
+          <i class="bi {{ file.icon_class() }}" style="font-size:22px"></i>
+        </td>
+        <!-- Name + description -->
+        <td>
+          <div style="font-weight:600;font-size:13px">{{ file.original_name }}</div>
+          {% if file.description %}
+          <div style="font-size:11px;color:var(--text-3)">{{ file.description[:60] }}{% if file.description|length > 60 %}…{% endif %}</div>
+          {% endif %}
+        </td>
+        <!-- Uploader -->
+        <td>
+          <div style="display:flex;align-items:center;gap:7px">
+            <div class="cfile-avatar" style="background:{{ file.uploader.avatar_color }}">
+              {{ file.uploader.get_initials() }}
+            </div>
+            <div>
+              <div style="font-size:12px;font-weight:600">{{ file.uploader.full_name }}</div>
+              <div style="font-size:11px;color:var(--text-3)">{{ file.uploader.department }}</div>
+            </div>
+          </div>
+        </td>
+        <td style="font-size:12px;color:var(--text-2);white-space:nowrap">{{ file.human_size() }}</td>
+        <td style="font-size:12px;color:var(--text-3);white-space:nowrap">
+          {{ file.created_at.strftime('%b %d, %Y') }}<br>
+          <span style="font-size:10px">{{ file.created_at.strftime('%H:%M') }}</span>
+        </td>
+        <td style="font-size:12px;color:var(--text-3);text-align:center">
+          <i class="bi bi-download" style="font-size:11px"></i> {{ file.download_count }}
+        </td>
+        <!-- Actions -->
+        <td>
+          <div class="cfile-actions">
+            {% if file.is_previewable() %}
+            <a href="{{ url_for('company.preview', file_id=file.id) }}"
+               target="_blank" class="caction-btn" title="Preview">
+              <i class="bi bi-eye"></i>
+            </a>
+            {% endif %}
+            <a href="{{ url_for('company.download', file_id=file.id) }}"
+               class="caction-btn" title="Download">
+              <i class="bi bi-download"></i>
+            </a>
+            {% if file.uploaded_by == current_user.id or current_user.role == 'admin' %}
+            <button class="caction-btn"
+                    onclick="openRenameModal('file', {{ file.id }}, '{{ file.original_name|e }}')"
+                    title="Rename">
+              <i class="bi bi-pencil"></i>
+            </button>
+            <button class="caction-btn"
+                    onclick="openMoveModal({{ file.id }})"
+                    title="Move to folder">
+              <i class="bi bi-folder-symlink"></i>
+            </button>
+            <form method="POST"
+                  action="{{ url_for('company.delete_file', file_id=file.id) }}"
+                  style="display:inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="caction-btn caction-danger" title="Delete"
+                      data-confirm="Delete '{{ file.original_name }}'?">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Pagination -->
+{% if files.pages > 1 %}
+<div class="pagination" style="margin-top:20px">
+  {% if files.has_prev %}
+  <a href="{{ url_for('company.index', folder_id=current_folder.id if current_folder else '', page=files.prev_num, q=q, sort=sort) }}" class="page-btn">
+    <i class="bi bi-chevron-left"></i>
+  </a>
+  {% endif %}
+  {% for p in files.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+    {% if p %}
+    <a href="{{ url_for('company.index', folder_id=current_folder.id if current_folder else '', page=p, q=q, sort=sort) }}"
+       class="page-btn {{ 'active' if p == files.page }}">{{ p }}</a>
+    {% else %}
+    <span class="page-btn" style="cursor:default">…</span>
+    {% endif %}
+  {% endfor %}
+  {% if files.has_next %}
+  <a href="{{ url_for('company.index', folder_id=current_folder.id if current_folder else '', page=files.next_num, q=q, sort=sort) }}" class="page-btn">
+    <i class="bi bi-chevron-right"></i>
+  </a>
+  {% endif %}
+</div>
+{% endif %}
+
+{% elif folders %}
+<!-- Has folders but no files in this view -->
+<div style="text-align:center;padding:32px;color:var(--text-3)">
+  <i class="bi bi-file-earmark" style="font-size:32px;display:block;margin-bottom:8px"></i>
+  No files in this location yet.
+  <button class="btn btn-orange btn-sm" style="display:block;margin:12px auto 0" onclick="openModal('uploadModal')">
+    <i class="bi bi-upload"></i> Upload Here
+  </button>
+</div>
+{% endif %}
+
+{% endif %}
+
+<!-- ══ MODALS ══════════════════════════════════════════════════════════════════ -->
+
+<!-- Upload Modal -->
+<div class="modal-overlay" id="uploadModal" onclick="if(event.target===this)closeModal('uploadModal')">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <div class="modal-title">
+        <i class="bi bi-cloud-upload-fill" style="color:var(--orange)"></i>
+        Upload to Company Files
+      </div>
+      <button class="modal-close" onclick="closeModal('uploadModal')">×</button>
+    </div>
+    <form method="POST" enctype="multipart/form-data"
+          action="{{ url_for('company.upload') }}" id="companyUploadForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="folder_id"
+             value="{{ current_folder.id if current_folder else '' }}">
+      <div class="modal-body">
+        <!-- Drop Zone -->
+        <div class="upload-zone" id="cUploadZone">
+          <i class="bi bi-cloud-upload-fill"></i>
+          <h3>Drop files here or click to browse</h3>
+          <p>All employees will see uploaded files instantly</p>
+          <input type="file" name="files" id="cFileInput" multiple>
+        </div>
+        <div id="cFilePreviewList"></div>
+
+        <div class="form-group" style="margin-top:14px">
+          <label class="form-label">Description (optional)</label>
+          <input type="text" name="description" class="form-control"
+                 placeholder="Brief description of these files…">
+        </div>
+
+        {% if current_folder %}
+        <div style="font-size:12px;color:var(--text-3);margin-top:6px">
+          <i class="bi bi-folder-fill" style="color:var(--orange)"></i>
+          Uploading into: <strong>{{ current_folder.name }}</strong>
+        </div>
+        {% endif %}
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('uploadModal')">Cancel</button>
+        <button type="submit" class="btn btn-orange">
+          <i class="bi bi-cloud-upload-fill"></i> Upload
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- New Folder Modal -->
+<div class="modal-overlay" id="newFolderModal" onclick="if(event.target===this)closeModal('newFolderModal')">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <div class="modal-title">
+        <i class="bi bi-folder-plus" style="color:var(--orange)"></i> New Folder
+      </div>
+      <button class="modal-close" onclick="closeModal('newFolderModal')">×</button>
+    </div>
+    <form method="POST" action="{{ url_for('company.create_folder') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="parent_id"
+             value="{{ current_folder.id if current_folder else '' }}">
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Folder Name *</label>
+          <input type="text" name="name" class="form-control"
+                 placeholder="e.g. Q1 Reports" required autofocus>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Folder Color</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            {% for col in ['#1a3a6b','#e85d04','#16a34a','#0284c7','#7b2d8b','#d97706','#dc2626','#0f2447'] %}
+            <label style="cursor:pointer">
+              <input type="radio" name="color" value="{{ col }}"
+                     {{ 'checked' if col == '#1a3a6b' }}
+                     style="display:none" class="color-radio">
+              <span class="color-swatch" style="background:{{ col }};width:28px;height:28px;border-radius:50%;display:block;border:3px solid transparent;transition:all 0.15s"></span>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('newFolderModal')">Cancel</button>
+        <button type="submit" class="btn btn-orange">
+          <i class="bi bi-folder-check"></i> Create Folder
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Rename Modal -->
+<div class="modal-overlay" id="renameModal" onclick="if(event.target===this)closeModal('renameModal')">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <div class="modal-title">
+        <i class="bi bi-pencil-fill" style="color:var(--orange)"></i> Rename
+      </div>
+      <button class="modal-close" onclick="closeModal('renameModal')">×</button>
+    </div>
+    <form method="POST" id="renameForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">New Name</label>
+          <input type="text" name="name" id="renameInput" class="form-control" required>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('renameModal')">Cancel</button>
+        <button type="submit" class="btn btn-orange"><i class="bi bi-check2"></i> Rename</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Move File Modal -->
+<div class="modal-overlay" id="moveModal" onclick="if(event.target===this)closeModal('moveModal')">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <div class="modal-title">
+        <i class="bi bi-folder-symlink" style="color:var(--orange)"></i> Move File
+      </div>
+      <button class="modal-close" onclick="closeModal('moveModal')">×</button>
+    </div>
+    <form method="POST" id="moveForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Destination Folder</label>
+          <select name="folder_id" class="form-control" id="moveFolderSelect">
+            <option value="">— Root (no folder) —</option>
+            {% for f in all_folders %}
+            <option value="{{ f.id }}">{{ f.get_path() }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('moveModal')">Cancel</button>
+        <button type="submit" class="btn btn-orange"><i class="bi bi-arrow-right-circle"></i> Move</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ── modal helpers ── */
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+/* ── rename modal ── */
+function openRenameModal(type, id, currentName) {
+  const form = document.getElementById('renameForm');
+  form.action = type === 'folder'
+    ? `/company/folder/${id}/rename`
+    : `/company/file/${id}/rename`;
+  document.getElementById('renameInput').value = currentName;
+  openModal('renameModal');
+  setTimeout(() => document.getElementById('renameInput').select(), 80);
+}
+
+/* ── move modal ── */
+function openMoveModal(fileId) {
+  document.getElementById('moveForm').action = `/company/file/${fileId}/move`;
+  openModal('moveModal');
+}
+
+/* ── upload zone for company modal ── */
+(function() {
+  const zone  = document.getElementById('cUploadZone');
+  const input = document.getElementById('cFileInput');
+  if (!zone || !input) return;
+
+  zone.addEventListener('click', () => input.click());
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('drag-over');
+    if (e.dataTransfer.files.length) {
+      input.files = e.dataTransfer.files;
+      renderPreview(input.files);
+    }
+  });
+  input.addEventListener('change', () => renderPreview(input.files));
+
+  function renderPreview(files) {
+    const list = document.getElementById('cFilePreviewList');
+    list.innerHTML = '';
+    Array.from(files).forEach(f => {
+      const div = document.createElement('div');
+      div.style.cssText = 'display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg);border-radius:8px;margin-top:6px;font-size:13px';
+      div.innerHTML = `<i class="bi bi-file-earmark" style="font-size:17px;color:var(--navy)"></i>
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.name}</span>
+        <span style="color:var(--text-3);font-size:11px;flex-shrink:0">${window.formatBytes ? formatBytes(f.size) : ''}</span>`;
+      list.appendChild(div);
+    });
+  }
+})();
+
+/* ── color swatch radio visuals ── */
+document.querySelectorAll('.color-radio').forEach(r => {
+  r.addEventListener('change', function() {
+    document.querySelectorAll('.color-radio').forEach(x => {
+      x.nextElementSibling.style.borderColor = 'transparent';
+      x.nextElementSibling.style.transform = 'scale(1)';
+    });
+    this.nextElementSibling.style.borderColor = 'rgba(255,255,255,0.8)';
+    this.nextElementSibling.style.transform = 'scale(1.2)';
+  });
+});
+// init first
+const firstRadio = document.querySelector('.color-radio:checked');
+if (firstRadio) {
+  firstRadio.nextElementSibling.style.borderColor = 'rgba(255,255,255,0.8)';
+  firstRadio.nextElementSibling.style.transform = 'scale(1.2)';
+}
+</script>
+{% endblock %}

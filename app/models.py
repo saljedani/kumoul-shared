@@ -18,12 +18,12 @@ class User(UserMixin, db.Model):
     full_name = db.Column(db.String(150), nullable=False)
     full_name_ar = db.Column(db.String(150))
     department = db.Column(db.String(100), nullable=False, default='General')
-    role = db.Column(db.String(20), nullable=False, default='employee')  # admin / employee
+    role = db.Column(db.String(20), nullable=False, default='employee')
     password_hash = db.Column(db.String(256), nullable=False)
     is_active = db.Column(db.Boolean, default=True)
     avatar_color = db.Column(db.String(20), default='#1a3a6b')
     storage_used = db.Column(db.BigInteger, default=0)
-    storage_limit = db.Column(db.BigInteger, default=5 * 1024 * 1024 * 1024)  # 5GB
+    storage_limit = db.Column(db.BigInteger, default=5 * 1024 * 1024 * 1024)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login = db.Column(db.DateTime)
     theme = db.Column(db.String(10), default='light')
@@ -131,9 +131,9 @@ class File(db.Model):
             'rar': 'bi-file-earmark-zip-fill text-secondary',
             'txt': 'bi-file-earmark-text-fill text-muted',
             'csv': 'bi-file-earmark-spreadsheet-fill text-success',
-            'mp4': 'bi-file-earmark-play-fill text-purple',
-            'mp3': 'bi-file-earmark-music-fill text-purple',
-            'dwg': 'bi-file-earmark-code-fill text-orange',
+            'mp4': 'bi-file-earmark-play-fill',
+            'mp3': 'bi-file-earmark-music-fill',
+            'dwg': 'bi-file-earmark-code-fill',
         }
         return icons.get(self.extension.lower() if self.extension else '', 'bi-file-earmark-fill text-secondary')
 
@@ -173,7 +173,7 @@ class Notification(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     title = db.Column(db.String(200), nullable=False)
     message = db.Column(db.String(500))
-    type = db.Column(db.String(50), default='info')  # info, share, announcement, warning
+    type = db.Column(db.String(50), default='info')
     link = db.Column(db.String(300))
     is_read = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -191,3 +191,101 @@ class ActivityLog(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     user = db.relationship('User', foreign_keys=[user_id])
+
+
+# ═══════════════════════════════════════════════════════════════
+#   SHARED COMPANY FILES  —  visible to ALL logged-in employees
+# ═══════════════════════════════════════════════════════════════
+
+class SharedFolder(db.Model):
+    """Folders inside the Shared Company Files space."""
+    __tablename__ = 'shared_folders'
+
+    id          = db.Column(db.Integer, primary_key=True)
+    name        = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.String(500))
+    parent_id   = db.Column(db.Integer, db.ForeignKey('shared_folders.id'), nullable=True)
+    created_by  = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    color       = db.Column(db.String(20), default='#1a3a6b')
+    created_at  = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at  = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    children = db.relationship(
+        'SharedFolder',
+        backref=db.backref('parent', remote_side=[id]),
+        lazy='dynamic',
+        cascade='all, delete-orphan'
+    )
+    files   = db.relationship(
+        'SharedFile', backref='folder', lazy='dynamic',
+        cascade='all, delete-orphan'
+    )
+    creator = db.relationship('User', foreign_keys=[created_by])
+
+    def file_count(self):
+        return self.files.count()
+
+    def get_path(self):
+        parts, cur = [self.name], self
+        for _ in range(10):
+            if not cur.parent_id:
+                break
+            cur = SharedFolder.query.get(cur.parent_id)
+            if cur:
+                parts.insert(0, cur.name)
+        return ' / '.join(parts)
+
+
+class SharedFile(db.Model):
+    """Files in the Shared Company Files space."""
+    __tablename__ = 'shared_files'
+
+    id             = db.Column(db.Integer, primary_key=True)
+    original_name  = db.Column(db.String(300), nullable=False)
+    stored_name    = db.Column(db.String(300), nullable=False, unique=True)
+    file_path      = db.Column(db.String(500), nullable=False)
+    file_size      = db.Column(db.BigInteger, default=0)
+    file_type      = db.Column(db.String(100))
+    extension      = db.Column(db.String(20))
+    uploaded_by    = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    folder_id      = db.Column(db.Integer, db.ForeignKey('shared_folders.id'), nullable=True)
+    description    = db.Column(db.String(1000))
+    download_count = db.Column(db.Integer, default=0)
+    created_at     = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at     = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    uploader = db.relationship('User', foreign_keys=[uploaded_by])
+
+    def human_size(self):
+        size = self.file_size
+        for unit in ['B', 'KB', 'MB', 'GB']:
+            if size < 1024:
+                return f"{size:.1f} {unit}"
+            size /= 1024
+        return f"{size:.1f} TB"
+
+    def icon_class(self):
+        icons = {
+            'pdf':  'bi-file-earmark-pdf-fill text-danger',
+            'doc':  'bi-file-earmark-word-fill text-primary',
+            'docx': 'bi-file-earmark-word-fill text-primary',
+            'xls':  'bi-file-earmark-excel-fill text-success',
+            'xlsx': 'bi-file-earmark-excel-fill text-success',
+            'ppt':  'bi-file-earmark-ppt-fill text-warning',
+            'pptx': 'bi-file-earmark-ppt-fill text-warning',
+            'png':  'bi-file-earmark-image-fill text-info',
+            'jpg':  'bi-file-earmark-image-fill text-info',
+            'jpeg': 'bi-file-earmark-image-fill text-info',
+            'gif':  'bi-file-earmark-image-fill text-info',
+            'zip':  'bi-file-earmark-zip-fill text-secondary',
+            'rar':  'bi-file-earmark-zip-fill text-secondary',
+            'txt':  'bi-file-earmark-text-fill text-muted',
+            'csv':  'bi-file-earmark-spreadsheet-fill text-success',
+            'mp4':  'bi-file-earmark-play-fill',
+            'mp3':  'bi-file-earmark-music-fill',
+            'dwg':  'bi-file-earmark-code-fill',
+        }
+        return icons.get((self.extension or '').lower(), 'bi-file-earmark-fill text-secondary')
+
+    def is_previewable(self):
+        return (self.extension or '').lower() in ('pdf', 'png', 'jpg', 'jpeg', 'gif')
