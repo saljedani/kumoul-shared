@@ -59,27 +59,6 @@ Open your browser: **http://localhost:5000**
 
 ---
 
-## 🔑 Default Accounts
-
-### Admin
-| Field | Value |
-|---|---|
-| Username | `admin` |
-| Password | `Admin@123` |
-
-### Sample Employees (all use password `Employee@123`)
-| Username | Name | Department |
-|---|---|---|
-| ahmed.rashidi | Ahmed Al-Rashidi | Engineering |
-| fatima.malik | Fatima Al-Malik | HR |
-| omar.hassan | Omar Hassan | Finance |
-| sara.ali | Sara Al-Ali | Projects |
-| khalid.noor | Khalid Noor | Management |
-
-> **⚠️ Change all passwords immediately after first login in production!**
-
----
-
 ## 🐳 Docker Deployment
 
 ```bash
